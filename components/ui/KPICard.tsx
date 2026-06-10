@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 
 interface KPICardProps {
   title: string
@@ -18,6 +19,7 @@ interface KPICardProps {
   loading?: boolean
   highlight?: boolean
   delay?: number
+  href?: string
 }
 
 function useCountUp(target: number, duration = 1200, delay = 0) {
@@ -48,7 +50,7 @@ function useCountUp(target: number, duration = 1200, delay = 0) {
 export function KPICard({
   title, value, prefix = '', suffix = '', trend, trendLabel,
   icon: Icon, iconColor = 'text-blue-400', iconBg = 'bg-blue-500/10',
-  loading = false, highlight = false, delay = 0,
+  loading = false, highlight = false, delay = 0, href,
 }: KPICardProps) {
   const numericValue = typeof value === 'number' ? value : 0
   const displayCount = useCountUp(numericValue, 1200, delay)
@@ -69,18 +71,22 @@ export function KPICard({
   const TrendIcon = trend === undefined ? Minus : trend > 0 ? TrendingUp : TrendingDown
   const trendColor = trend === undefined ? 'text-zinc-500' : trend > 0 ? 'text-emerald-400' : 'text-red-400'
 
-  return (
+  const content = (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: delay / 1000 }}
       className={cn(
-        'rounded-xl border bg-[#0f0f10] p-5 card-hover cursor-default group relative overflow-hidden',
+        'rounded-xl border bg-[#0f0f10] p-5 relative overflow-hidden',
+        href ? 'cursor-pointer hover:border-zinc-600 hover:-translate-y-0.5 transition-all duration-200' : 'cursor-default',
         highlight ? 'border-blue-500/30 glow-blue' : 'border-zinc-800/60 hover:border-zinc-700'
       )}
     >
       {highlight && (
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
+      )}
+      {href && (
+        <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/0 hover:from-white/[0.02] pointer-events-none transition-all" />
       )}
 
       <div className="flex items-center justify-between mb-4">
@@ -105,6 +111,18 @@ export function KPICard({
           </span>
         </div>
       )}
+
+      {href && (
+        <div className="mt-3 text-xs text-zinc-600 group-hover:text-zinc-400 transition-colors">
+          View all →
+        </div>
+      )}
     </motion.div>
   )
+
+  if (href) {
+    return <Link href={href} className="block group">{content}</Link>
+  }
+
+  return content
 }

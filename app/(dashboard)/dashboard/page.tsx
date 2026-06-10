@@ -68,12 +68,12 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {loading ? Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />) : (
           <>
-            <KPICard title="Total Leads" value={stats.total} icon={Users} iconColor="text-blue-400" iconBg="bg-blue-500/10" trend={12} trendLabel="vs last month" delay={0} />
-            <KPICard title="Hot Leads" value={stats.hot} icon={Flame} iconColor="text-red-400" iconBg="bg-red-500/10" trend={8} trendLabel="this week" delay={50} highlight />
-            <KPICard title="Booked" value={stats.booked} icon={Calendar} iconColor="text-cyan-400" iconBg="bg-cyan-500/10" delay={100} />
-            <KPICard title="Quotes Sent" value={4} icon={FileText} iconColor="text-amber-400" iconBg="bg-amber-500/10" delay={150} />
-            <KPICard title="Conversion" value={stats.conversionRate} suffix="%" icon={TrendingUp} iconColor="text-emerald-400" iconBg="bg-emerald-500/10" trend={3} delay={200} />
-            <KPICard title="Pipeline" value={stats.pipeline} prefix="£" icon={DollarSign} iconColor="text-purple-400" iconBg="bg-purple-500/10" delay={250} />
+            <KPICard title="Total Leads" value={stats.total} icon={Users} iconColor="text-blue-400" iconBg="bg-blue-500/10" trend={12} trendLabel="vs last month" delay={0} href="/leads" />
+            <KPICard title="Hot Leads" value={stats.hot} icon={Flame} iconColor="text-red-400" iconBg="bg-red-500/10" trend={8} trendLabel="this week" delay={50} highlight href="/leads?filter=hot" />
+            <KPICard title="Booked" value={stats.booked} icon={Calendar} iconColor="text-cyan-400" iconBg="bg-cyan-500/10" delay={100} href="/leads?status=BOOKED" />
+            <KPICard title="Quotes Sent" value={4} icon={FileText} iconColor="text-amber-400" iconBg="bg-amber-500/10" delay={150} href="/quotes" />
+            <KPICard title="Conversion" value={stats.conversionRate} suffix="%" icon={TrendingUp} iconColor="text-emerald-400" iconBg="bg-emerald-500/10" trend={3} delay={200} href="/analytics" />
+            <KPICard title="Pipeline" value={stats.pipeline} prefix="£" icon={DollarSign} iconColor="text-purple-400" iconBg="bg-purple-500/10" delay={250} href="/pipeline" />
           </>
         )}
       </div>
