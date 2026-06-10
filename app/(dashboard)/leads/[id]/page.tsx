@@ -87,6 +87,14 @@ function BookInspectionModal({ lead, onClose, onSuccess }: { lead: any; onClose:
         <div className="mb-4 p-3 rounded-lg bg-zinc-900 border border-zinc-800">
           <p className="text-sm font-medium text-zinc-200">{lead.name}</p>
           <p className="text-xs text-zinc-500 capitalize">{lead.service_type?.replace('_',' ')} · {lead.postcode}</p>
+          {!lead.email && (
+            <p className="text-xs text-amber-400 mt-1.5 flex items-center gap-1">
+              ⚠️ No email on file — confirmation will be sent via WhatsApp only
+            </p>
+          )}
+          {lead.email && (
+            <p className="text-xs text-emerald-400 mt-1.5">✓ Confirmation will be sent to {lead.email} + WhatsApp</p>
+          )}
         </div>
 
         {error && <p className="mb-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">{error}</p>}
