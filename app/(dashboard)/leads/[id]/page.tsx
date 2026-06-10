@@ -63,9 +63,9 @@ function BookInspectionModal({ lead, onClose, onSuccess }: { lead: any; onClose:
       const d = new Date(scheduledTime)
       const dateStr = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
       const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-      fetch('https://skywebbuk.app.n8n.cloud/webhook/skyweb-crm-master', {
+      fetch('https://skywebbuk.app.n8n.cloud/webhook/skyweb-crm-appointment', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'appointment_booked', lead_id: lead.id, lead_name: lead.name, lead_phone: lead.phone, lead_email: lead.email, scheduled_time: scheduledTime, date_formatted: `${dateStr} at ${timeStr}`, notes, roofer_id: 'a1000000-0000-0000-0000-000000000001' })
+        body: JSON.stringify({ lead_id: lead.id, lead_name: lead.name, lead_phone: lead.phone, lead_email: lead.email, scheduled_time: scheduledTime, date_formatted: `${dateStr} at ${timeStr}`, notes, roofer_id: 'a1000000-0000-0000-0000-000000000001' })
       }).catch(() => {})
       onSuccess()
     } catch (e: any) { setError(e.message) }
