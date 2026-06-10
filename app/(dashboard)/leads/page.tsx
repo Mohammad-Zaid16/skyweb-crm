@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSearchParams } from 'next/navigation'
 import {
   Search, Filter, SortAsc, SortDesc, Download, Trash2,
   ChevronLeft, ChevronRight, Phone, Mail, MapPin, ArrowUpDown, Flame
@@ -26,9 +27,14 @@ type SortDir = 'asc' | 'desc'
 export default function LeadsPage() {
   const { leads, loading } = useLeads()
   const { selectedLeads, toggleLeadSelection, clearSelection, selectAll } = useCRMStore()
+  const searchParams = useSearchParams()
+
+  // Read URL params from dashboard KPI card links
+  const urlStatus = searchParams.get('status') ?? ''
+  const urlFilter = searchParams.get('filter') ?? ''
 
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState(urlStatus || 'ALL')
   const [sourceFilter, setSourceFilter] = useState('ALL')
   const [urgencyFilter, setUrgencyFilter] = useState('ALL')
   const [sortField, setSortField] = useState<SortField>('score')
@@ -47,6 +53,8 @@ export default function LeadsPage() {
         l.email?.toLowerCase().includes(q)
       )
     }
+    // Apply URL filter=hot (score >= 75)
+    if (urlFilter === 'hot') list = list.filter((l) => (l.score ?? 0) >= 75)
     if (statusFilter !== 'ALL') list = list.filter((l) => l.status === statusFilter)
     if (sourceFilter !== 'ALL') list = list.filter((l) => l.source === sourceFilter)
     if (urgencyFilter !== 'ALL') list = list.filter((l) => l.urgency === urgencyFilter)
@@ -108,6 +116,17 @@ export default function LeadsPage() {
         </button>
 
         <span className="text-sm text-zinc-500">{filtered.length} leads</span>
+
+        {/* Active filter banner from dashboard */}
+        {(urlFilter === 'hot' || urlStatus) && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <Flame className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-xs text-blue-400 font-medium">
+              {urlFilter === 'hot' ? 'Hot Leads (score ≥ 75)' : `Status: ${urlStatus}`}
+            </span>
+            <Link href="/leads" className="text-xs text-zinc-500 hover:text-zinc-300 ml-1">✕ Clear</Link>
+          </div>
+        )}
 
         {selectedLeads.length > 0 && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700">
