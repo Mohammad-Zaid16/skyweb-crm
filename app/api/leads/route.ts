@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// Never cache — always fetch fresh leads
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Server-side only — bypasses Supabase allowlist entirely
 const supabaseAdmin = createClient(
   'https://vwfxdvhxoyzmlexcjbaq.supabase.co',

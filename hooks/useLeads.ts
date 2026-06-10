@@ -26,7 +26,12 @@ export function useLeads() {
     setLoading(false)
   }, [setLeads])
 
-  useEffect(() => { refetch() }, [refetch])
+  useEffect(() => {
+    refetch()
+    // Auto-refresh every 30 seconds to pick up new WhatsApp leads
+    const interval = setInterval(refetch, 30000)
+    return () => clearInterval(interval)
+  }, [refetch])
 
   return { leads, loading, error, refetch }
 }
