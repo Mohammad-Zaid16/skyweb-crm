@@ -413,38 +413,69 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <div className="rounded-xl border border-zinc-800/60 bg-[#0f0f10] p-5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">Actions</h3>
               <div className="space-y-2">
-                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                  onClick={() => setShowBookModal(true)}
-                  disabled={updating || lead.status === 'WON' || lead.status === 'LOST'}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-                  <Calendar className="w-4 h-4" /> Book Inspection
-                </motion.button>
-
-                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                  onClick={() => setShowQuoteModal(true)}
-                  disabled={updating || lead.status === 'WON' || lead.status === 'LOST'}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-                  <FileText className="w-4 h-4" /> Send Quote
-                </motion.button>
-
-                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                  onClick={() => updateStatus('CONTACTED')} disabled={updating}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors border border-zinc-700">
-                  <Phone className="w-4 h-4" /> Mark Contacted
-                </motion.button>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                {/* Book Inspection */}
+                {lead.status === 'BOOKED' ? (
+                  <div className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-medium">
+                    <CheckCircle className="w-4 h-4" /> Inspection Booked ✓
+                    <button onClick={() => setShowBookModal(true)} className="ml-auto text-xs opacity-60 hover:opacity-100 transition-opacity">Rebook</button>
+                  </div>
+                ) : (
                   <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                    onClick={() => updateStatus('WON')} disabled={updating}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/20 transition-colors disabled:opacity-40">
-                    <CheckCircle className="w-3.5 h-3.5" /> Won
+                    onClick={() => setShowBookModal(true)}
+                    disabled={updating || lead.status === 'WON' || lead.status === 'LOST'}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
+                    <Calendar className="w-4 h-4" /> Book Inspection
                   </motion.button>
+                )}
+
+                {/* Send Quote */}
+                {(lead.status === 'QUOTED' || lead.status === 'WON') ? (
+                  <div className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium">
+                    <CheckCircle className="w-4 h-4" /> Quote Sent ✓
+                    <button onClick={() => setShowQuoteModal(true)} className="ml-auto text-xs opacity-60 hover:opacity-100 transition-opacity">Resend</button>
+                  </div>
+                ) : (
                   <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                    onClick={() => updateStatus('LOST')} disabled={updating}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors disabled:opacity-40">
-                    <XCircle className="w-3.5 h-3.5" /> Lost
+                    onClick={() => setShowQuoteModal(true)}
+                    disabled={updating || lead.status === 'LOST'}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
+                    <FileText className="w-4 h-4" /> Send Quote
                   </motion.button>
-                </div>
+                )}
+
+                {/* Mark Contacted — only show if not yet past this stage */}
+                {!['CONTACTED','QUOTED','BOOKED','WON','LOST'].includes(lead.status ?? '') && (
+                  <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                    onClick={() => updateStatus('CONTACTED')} disabled={updating}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors border border-zinc-700">
+                    <Phone className="w-4 h-4" /> Mark Contacted
+                  </motion.button>
+                )}
+
+                {/* Won / Lost */}
+                {lead.status === 'WON' ? (
+                  <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium">
+                    <CheckCircle className="w-4 h-4" /> Job Won ✓
+                  </div>
+                ) : lead.status === 'LOST' ? (
+                  <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+                    <XCircle className="w-4 h-4" /> Job Lost
+                    <button onClick={() => updateStatus('NEW')} className="ml-auto text-xs opacity-60 hover:opacity-100 transition-opacity">Reopen</button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                      onClick={() => updateStatus('WON')} disabled={updating}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/20 transition-colors disabled:opacity-40">
+                      <CheckCircle className="w-3.5 h-3.5" /> Won
+                    </motion.button>
+                    <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                      onClick={() => updateStatus('LOST')} disabled={updating}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors disabled:opacity-40">
+                      <XCircle className="w-3.5 h-3.5" /> Lost
+                    </motion.button>
+                  </div>
+                )}
               </div>
             </div>
 

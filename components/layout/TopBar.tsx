@@ -56,10 +56,10 @@ export default function TopBar({ onMobileMenuClick }: { onMobileMenuClick?: () =
         </div>
 
         {/* Search */}
-        <button className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all text-xs">
+        <Link href="/leads" className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all text-xs">
           <Search className="w-3.5 h-3.5" />
           <span className="hidden md:block">Search leads...</span>
-        </button>
+        </Link>
 
         {/* Live time */}
         <div className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">

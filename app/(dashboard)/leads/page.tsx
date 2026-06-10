@@ -93,7 +93,8 @@ export default function LeadsPage() {
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Search leads..."
+            placeholder="Search by name, phone, postcode..."
+            autoFocus
             className="w-full pl-9 pr-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
           />
         </div>
