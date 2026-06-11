@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useCRMStore } from '@/store/crm'
 import type { Lead } from '@/types/database'
 
@@ -10,9 +10,15 @@ export function useLeads() {
   const { leads, setLeads } = useCRMStore()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const lastFetchRef = useRef<number>(0)
 
-  const refetch = useCallback(async () => {
-    setLoading(true)
+  const refetch = useCallback(async (silent = false) => {
+    // Throttle: don't fetch if last fetch was < 10s ago (unless forced)
+    const now = Date.now()
+    if (!silent && now - lastFetchRef.current < 10000) return
+    lastFetchRef.current = now
+
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/leads')
@@ -23,14 +29,25 @@ export function useLeads() {
       console.error('useLeads error:', e)
       setError(e.message)
     }
-    setLoading(false)
+    if (!silent) setLoading(false)
   }, [setLeads])
 
   useEffect(() => {
     refetch()
-    // Auto-refresh every 30 seconds to pick up new WhatsApp leads
-    const interval = setInterval(refetch, 30000)
-    return () => clearInterval(interval)
+
+    // Silent background refresh only when tab becomes visible
+    // This avoids the annoying 30s reload interruption
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now()
+        // Only refresh if it's been > 2 minutes since last fetch
+        if (now - lastFetchRef.current > 120000) {
+          refetch(true) // silent refresh
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [refetch])
 
   return { leads, loading, error, refetch }
@@ -87,9 +104,7 @@ export function useLeadStats() {
     new: leads.filter((l) => l.status === 'NEW').length,
     pipeline: leads.reduce((sum, l) => sum + (l.estimated_value ?? 0), 0),
     wonRevenue: leads.filter((l) => l.status === 'WON').reduce((sum, l) => sum + (l.estimated_value ?? 0), 0),
-    conversionRate: leads.length > 0
-      ? Math.round((leads.filter((l) => l.status === 'WON').length / leads.length) * 100)
-      : 0,
+    conversionRate: leads.length > 0 ? Math.round((leads.filter((l) => l.status === 'WON').length / leads.length) * 100) : 0,
     byStatus: {
       NEW: leads.filter((l) => l.status === 'NEW'),
       CONTACTED: leads.filter((l) => l.status === 'CONTACTED'),
@@ -103,8 +118,6 @@ export function useLeadStats() {
       acc[src] = (acc[src] ?? 0) + 1
       return acc
     }, {} as Record<string, number>),
-    avgScore: leads.length > 0
-      ? Math.round(leads.reduce((sum, l) => sum + (l.score ?? 0), 0) / leads.length)
-      : 0,
+    avgScore: leads.length > 0 ? Math.round(leads.reduce((sum, l) => sum + (l.score ?? 0), 0) / leads.length) : 0,
   }
 }

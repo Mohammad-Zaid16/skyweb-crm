@@ -4,32 +4,25 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import {
-  Search, Filter, SortAsc, SortDesc, Download, Trash2,
-  ChevronLeft, ChevronRight, Phone, Mail, MapPin, ArrowUpDown, Flame
+  Search, Filter, Phone, MapPin, Flame,
+  ChevronLeft, ChevronRight, X, SortAsc, SortDesc
 } from 'lucide-react'
 import { useLeads } from '@/hooks/useLeads'
 import { ScoreBadge } from '@/components/ui/ScoreBadge'
-import { StatusBadge, UrgencyBadge, SourceBadge } from '@/components/ui/Badges'
-import { TableSkeleton } from '@/components/ui/Skeleton'
-import { useCRMStore } from '@/store/crm'
-import { formatCurrency, formatRelativeTime, cn } from '@/lib/utils'
+import { StatusBadge, SourceBadge } from '@/components/ui/Badges'
+import { formatRelativeTime, cn } from '@/lib/utils'
 import Link from 'next/link'
 
 const PAGE_SIZE = 10
-
-const STATUS_OPTIONS = ['ALL', 'NEW', 'CONTACTED', 'QUOTED', 'BOOKED', 'WON', 'LOST']
-const SOURCE_OPTIONS = ['ALL', 'google', 'referral', 'website', 'facebook', 'callrail', 'manual']
-const URGENCY_OPTIONS = ['ALL', 'emergency', 'high', 'medium', 'low']
-
-type SortField = 'score' | 'created_at' | 'estimated_value' | 'name' | 'status'
-type SortDir = 'asc' | 'desc'
+const STATUS_OPTIONS = ['ALL','NEW','CONTACTED','QUOTED','BOOKED','WON','LOST']
+const SOURCE_OPTIONS = ['ALL','google','referral','website','facebook','callrail','whatsapp','manual']
+const URGENCY_OPTIONS = ['ALL','emergency','high','medium','low']
+type SortField = 'score'|'created_at'|'estimated_value'|'name'|'status'
+type SortDir = 'asc'|'desc'
 
 export default function LeadsPage() {
   const { leads, loading } = useLeads()
-  const { selectedLeads, toggleLeadSelection, clearSelection, selectAll } = useCRMStore()
   const searchParams = useSearchParams()
-
-  // Read URL params from dashboard KPI card links
   const urlStatus = searchParams.get('status') ?? ''
   const urlFilter = searchParams.get('filter') ?? ''
 
@@ -53,136 +46,103 @@ export default function LeadsPage() {
         l.email?.toLowerCase().includes(q)
       )
     }
-    // Apply URL filter=hot (score >= 75)
     if (urlFilter === 'hot') list = list.filter((l) => (l.score ?? 0) >= 75)
     if (statusFilter !== 'ALL') list = list.filter((l) => l.status === statusFilter)
     if (sourceFilter !== 'ALL') list = list.filter((l) => l.source === sourceFilter)
     if (urgencyFilter !== 'ALL') list = list.filter((l) => l.urgency === urgencyFilter)
-
     list.sort((a, b) => {
-      const av = a[sortField] ?? 0
-      const bv = b[sortField] ?? 0
-      const cmp = typeof av === 'string' ? av.localeCompare(bv as string) : (av as number) - (bv as number)
-      return sortDir === 'desc' ? -cmp : cmp
+      let av: any = (a as any)[sortField] ?? 0
+      let bv: any = (b as any)[sortField] ?? 0
+      if (sortField === 'name') { av = (av ?? '').toString().toLowerCase(); bv = (bv ?? '').toString().toLowerCase() }
+      if (sortField === 'created_at') { av = new Date(av).getTime(); bv = new Date(bv).getTime() }
+      return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
     })
-
     return list
-  }, [leads, search, statusFilter, sourceFilter, urgencyFilter, sortField, sortDir])
+  }, [leads, search, statusFilter, sourceFilter, urgencyFilter, sortField, sortDir, urlFilter])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const allSelected = paginated.length > 0 && paginated.every((l) => selectedLeads.includes(l.id))
+  const hasActiveFilter = statusFilter !== 'ALL' || sourceFilter !== 'ALL' || urgencyFilter !== 'ALL' || !!urlFilter || !!urlStatus
 
   const toggleSort = (field: SortField) => {
-    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortField(field); setSortDir('desc') }
   }
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-zinc-600" />
-    return sortDir === 'desc' ? <SortDesc className="w-3 h-3 text-blue-400" /> : <SortAsc className="w-3 h-3 text-blue-400" />
+  const urgencyColor: Record<string, string> = {
+    emergency: 'text-red-400', high: 'text-orange-400',
+    medium: 'text-amber-400', low: 'text-zinc-500'
   }
 
   return (
     <div className="space-y-4 max-w-[1400px]">
-      {/* Header bar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {/* Search */}
-        <div className="flex-1 min-w-[220px] relative">
+      {/* Search + filters bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Search by name, phone, postcode..."
+            placeholder="Search name, phone, postcode..."
             autoFocus
-            className="w-full pl-9 pr-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
+            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
           />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
-
-        {/* Filter toggle */}
-        <button
-          onClick={() => setShowFilters((v) => !v)}
-          className={cn(
-            'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all',
-            showFilters
-              ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-              : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-          )}
-        >
+        <button onClick={() => setShowFilters(v => !v)}
+          className={cn('flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all',
+            showFilters || hasActiveFilter ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200')}>
           <Filter className="w-3.5 h-3.5" />
-          Filters
-          {(statusFilter !== 'ALL' || sourceFilter !== 'ALL' || urgencyFilter !== 'ALL') && (
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-          )}
+          <span className="hidden sm:block">Filters</span>
+          {hasActiveFilter && <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
         </button>
+        <span className="text-sm text-zinc-600">{filtered.length} leads</span>
 
-        <span className="text-sm text-zinc-500">{filtered.length} leads</span>
-
-        {/* Active filter banner from dashboard */}
+        {/* Active filter tags */}
         {(urlFilter === 'hot' || urlStatus) && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
-            <Flame className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-xs text-blue-400 font-medium">
-              {urlFilter === 'hot' ? 'Hot Leads (score ≥ 75)' : `Status: ${urlStatus}`}
-            </span>
-            <Link href="/leads" className="text-xs text-zinc-500 hover:text-zinc-300 ml-1">✕ Clear</Link>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <Flame className="w-3 h-3 text-blue-400" />
+            <span className="text-xs text-blue-400">{urlFilter === 'hot' ? 'Hot leads' : urlStatus}</span>
+            <Link href="/leads" className="text-zinc-600 hover:text-zinc-400"><X className="w-3 h-3" /></Link>
           </div>
         )}
-
-        {selectedLeads.length > 0 && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700">
-            <span className="text-xs text-zinc-400">{selectedLeads.length} selected</span>
-            <button className="text-red-400 hover:text-red-300 p-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
-            <button onClick={clearSelection} className="text-zinc-500 text-xs hover:text-zinc-300">Clear</button>
-          </motion.div>
-        )}
-
-        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-400 hover:text-zinc-200 transition-colors ml-auto">
-          <Download className="w-3.5 h-3.5" /> Export
-        </button>
       </div>
 
-      {/* Filters row */}
+      {/* Filters panel */}
       <AnimatePresence>
         {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex flex-wrap gap-3"
-          >
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium">Status</span>
-              <div className="flex gap-1 flex-wrap">
-                {STATUS_OPTIONS.map((s) => (
-                  <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
-                    className={cn('px-2.5 py-1 rounded-md text-xs font-medium border transition-all',
-                      statusFilter === s ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300')}>
-                    {s}
-                  </button>
-                ))}
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="rounded-xl border border-zinc-800/60 bg-[#0f0f10] p-4 space-y-3 overflow-hidden">
+            {[
+              { label: 'Status', options: STATUS_OPTIONS, value: statusFilter, set: (v: string) => { setStatusFilter(v); setPage(1) } },
+              { label: 'Source', options: SOURCE_OPTIONS, value: sourceFilter, set: (v: string) => { setSourceFilter(v); setPage(1) } },
+              { label: 'Urgency', options: URGENCY_OPTIONS, value: urgencyFilter, set: (v: string) => { setUrgencyFilter(v); setPage(1) } },
+            ].map(({ label, options, value, set }) => (
+              <div key={label} className="flex items-center gap-3 flex-wrap">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium w-14 shrink-0">{label}</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  {options.map((o) => (
+                    <button key={o} onClick={() => set(o)}
+                      className={cn('px-2.5 py-1 rounded-md text-xs font-medium border transition-all capitalize',
+                        value === o ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300')}>
+                      {o}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium">Source</span>
-              <div className="flex gap-1 flex-wrap">
-                {SOURCE_OPTIONS.map((s) => (
-                  <button key={s} onClick={() => { setSourceFilter(s); setPage(1) }}
-                    className={cn('px-2.5 py-1 rounded-md text-xs font-medium border transition-all capitalize',
-                      sourceFilter === s ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300')}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium">Urgency</span>
-              <div className="flex gap-1 flex-wrap">
-                {URGENCY_OPTIONS.map((s) => (
-                  <button key={s} onClick={() => { setUrgencyFilter(s); setPage(1) }}
-                    className={cn('px-2.5 py-1 rounded-md text-xs font-medium border transition-all capitalize',
-                      urgencyFilter === s ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300')}>
-                    {s}
+            ))}
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium w-14 shrink-0">Sort</span>
+              <div className="flex gap-1.5 flex-wrap">
+                {(['score','created_at','name','estimated_value'] as SortField[]).map(f => (
+                  <button key={f} onClick={() => toggleSort(f)}
+                    className={cn('flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition-all capitalize',
+                      sortField === f ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300')}>
+                    {f.replace('_',' ')} {sortField === f && (sortDir === 'desc' ? <SortDesc className="w-3 h-3" /> : <SortAsc className="w-3 h-3" />)}
                   </button>
                 ))}
               </div>
@@ -191,137 +151,171 @@ export default function LeadsPage() {
         )}
       </AnimatePresence>
 
-      {/* Table */}
-      <div className="rounded-xl border border-zinc-800/60 bg-[#0f0f10] overflow-hidden">
-        {/* Table head */}
-        <div className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3 border-b border-zinc-800/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-          <div>
-            <input type="checkbox" checked={allSelected}
-              onChange={() => allSelected ? clearSelection() : selectAll(paginated.map((l) => l.id))}
-              className="rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-0" />
+      {/* ── MOBILE: Card layout ── */}
+      <div className="md:hidden space-y-2">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-24 rounded-xl bg-zinc-900 border border-zinc-800 animate-pulse" />
+          ))
+        ) : paginated.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-zinc-600 rounded-xl border border-zinc-800 bg-[#0f0f10]">
+            <Search className="w-8 h-8 mb-2 opacity-20" />
+            <p className="text-sm">No leads found</p>
           </div>
-          <button onClick={() => toggleSort('name')} className="flex items-center gap-1.5 text-left hover:text-zinc-300 transition-colors">Name <SortIcon field="name" /></button>
-          <div>Contact</div>
-          <div>Location</div>
-          <button onClick={() => toggleSort('score')} className="flex items-center gap-1.5 hover:text-zinc-300 transition-colors">Score <SortIcon field="score" /></button>
-          <div>Status / Urgency</div>
-          <div>Source</div>
-          <button onClick={() => toggleSort('created_at')} className="flex items-center gap-1.5 hover:text-zinc-300 transition-colors">Activity <SortIcon field="created_at" /></button>
-        </div>
-
-        {/* Table body */}
-        <div className="divide-y divide-zinc-800/40">
-          {loading ? (
-            <div className="p-4"><TableSkeleton rows={8} /></div>
-          ) : paginated.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-zinc-600">
-              <Search className="w-10 h-10 mb-3 opacity-20" />
-              <p className="text-sm font-medium">No leads found</p>
-              <p className="text-xs text-zinc-700 mt-1">Try adjusting your filters</p>
-            </div>
-          ) : (
-            paginated.map((lead, i) => {
-              const isHot = (lead.score ?? 0) >= 75
-              const isSelected = selectedLeads.includes(lead.id)
-              return (
-                <motion.div
-                  key={lead.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.02 }}
-                  className={cn(
-                    'grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3 items-center transition-all cursor-pointer group',
-                    isSelected ? 'bg-blue-500/5 border-l-2 border-l-blue-500' : 'hover:bg-zinc-900/50',
-                    isHot && !isSelected && 'border-l-2 border-l-red-500/40'
-                  )}
-                >
-                  <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleLeadSelection(lead.id) }}>
-                    <input type="checkbox" checked={isSelected} onChange={() => {}} className="rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-0" />
-                  </div>
-
-                  <Link href={`/leads/${lead.id}`} className="flex items-center gap-2.5 min-w-0">
-                    <div className={cn(
-                      'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
-                      isHot ? 'bg-red-500/15 text-red-300 border border-red-500/20' : 'bg-zinc-800 text-zinc-400'
-                    )}>
+        ) : paginated.map((lead, i) => {
+          const isHot = (lead.score ?? 0) >= 75
+          return (
+            <motion.div key={lead.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+              <Link href={`/leads/${lead.id}`}
+                className={cn('block rounded-xl border bg-[#0f0f10] p-4 active:scale-[0.99] transition-all',
+                  isHot ? 'border-red-500/30' : 'border-zinc-800/60')}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0',
+                      isHot ? 'bg-red-500/15 text-red-300' : 'bg-zinc-800 text-zinc-400')}>
                       {lead.name?.charAt(0) ?? '?'}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium text-zinc-200 truncate group-hover:text-white transition-colors">{lead.name ?? '—'}</span>
-                        {isHot && <Flame className="w-3 h-3 text-red-400 shrink-0" />}
+                        <span className="text-sm font-semibold text-zinc-200 truncate">{lead.name}</span>
+                        {isHot && <Flame className="w-3.5 h-3.5 text-red-400 shrink-0" />}
                       </div>
-                      <span className="text-xs text-zinc-600 truncate block">{lead.service_type?.replace('_', ' ') ?? '—'}</span>
+                      <p className="text-xs text-zinc-500 capitalize truncate">{lead.service_type?.replace('_',' ')}</p>
                     </div>
-                  </Link>
+                  </div>
+                  <ScoreBadge score={lead.score} size="sm" />
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <StatusBadge status={lead.status} />
+                  {lead.postcode && (
+                    <span className="flex items-center gap-1 text-xs text-zinc-600">
+                      <MapPin className="w-3 h-3" />{lead.postcode}
+                    </span>
+                  )}
+                  {lead.phone && (
+                    <span className="flex items-center gap-1 text-xs text-zinc-600">
+                      <Phone className="w-3 h-3" />{lead.phone}
+                    </span>
+                  )}
+                  <span className="text-xs text-zinc-700 ml-auto">{formatRelativeTime(lead.created_at)}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <SourceBadge source={lead.source} />
+                  {lead.urgency && (
+                    <span className={cn('text-xs font-medium capitalize', urgencyColor[lead.urgency] ?? 'text-zinc-500')}>
+                      {lead.urgency}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            </motion.div>
+          )
+        })}
+      </div>
 
-                  <Link href={`/leads/${lead.id}`} className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                      <Phone className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{lead.phone ?? '—'}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-600 mt-0.5">
-                      <Mail className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{lead.email ?? '—'}</span>
-                    </div>
-                  </Link>
-
-                  <Link href={`/leads/${lead.id}`} className="flex items-center gap-1.5 text-xs text-zinc-500">
-                    <MapPin className="w-3 h-3 shrink-0" />
-                    <span>{lead.postcode ?? '—'}</span>
-                  </Link>
-
-                  <Link href={`/leads/${lead.id}`}>
-                    <ScoreBadge score={lead.score} showBar />
-                  </Link>
-
-                  <Link href={`/leads/${lead.id}`} className="space-y-1">
-                    <StatusBadge status={lead.status} />
-                    <UrgencyBadge urgency={lead.urgency} />
-                  </Link>
-
-                  <Link href={`/leads/${lead.id}`}>
-                    <SourceBadge source={lead.source} />
-                  </Link>
-
-                  <Link href={`/leads/${lead.id}`} className="text-right">
-                    <div className="text-xs font-semibold text-zinc-200">{formatCurrency(lead.estimated_value)}</div>
-                    <div className="text-xs text-zinc-600">{formatRelativeTime(lead.last_contact_at ?? lead.created_at)}</div>
-                  </Link>
-                </motion.div>
-              )
-            })
-          )}
+      {/* ── DESKTOP: Table layout ── */}
+      <div className="hidden md:block rounded-xl border border-zinc-800/60 bg-[#0f0f10] overflow-hidden">
+        {/* Header */}
+        <div className="grid grid-cols-[1fr_1fr_80px_100px_120px_100px] gap-4 px-5 py-3 border-b border-zinc-800/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+          <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-zinc-300 transition-colors text-left">
+            Lead {sortField === 'name' && (sortDir === 'desc' ? <SortDesc className="w-3 h-3" /> : <SortAsc className="w-3 h-3" />)}
+          </button>
+          <div>Contact</div>
+          <button onClick={() => toggleSort('score')} className="flex items-center gap-1 hover:text-zinc-300 transition-colors">
+            Score {sortField === 'score' && (sortDir === 'desc' ? <SortDesc className="w-3 h-3" /> : <SortAsc className="w-3 h-3" />)}
+          </button>
+          <div>Status</div>
+          <div>Source</div>
+          <button onClick={() => toggleSort('created_at')} className="flex items-center gap-1 hover:text-zinc-300 transition-colors">
+            Time {sortField === 'created_at' && (sortDir === 'desc' ? <SortDesc className="w-3 h-3" /> : <SortAsc className="w-3 h-3" />)}
+          </button>
         </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800/60">
-          <span className="text-xs text-zinc-500">
-            Showing {Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+        {/* Rows */}
+        <div className="divide-y divide-zinc-800/40">
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-14 px-5 flex items-center gap-4">
+                <div className="w-8 h-8 rounded-full bg-zinc-800 animate-pulse" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="w-32 h-3 rounded bg-zinc-800 animate-pulse" />
+                  <div className="w-20 h-2 rounded bg-zinc-800 animate-pulse" />
+                </div>
+              </div>
+            ))
+          ) : paginated.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-zinc-600">
+              <Search className="w-8 h-8 mb-2 opacity-20" />
+              <p className="text-sm">No leads found</p>
+            </div>
+          ) : paginated.map((lead, i) => {
+            const isHot = (lead.score ?? 0) >= 75
+            return (
+              <motion.div key={lead.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}>
+                <Link href={`/leads/${lead.id}`}
+                  className={cn('grid grid-cols-[1fr_1fr_80px_100px_120px_100px] gap-4 px-5 py-3.5 items-center hover:bg-zinc-900/50 transition-all',
+                    isHot && 'border-l-2 border-l-red-500/40')}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
+                      isHot ? 'bg-red-500/15 text-red-300' : 'bg-zinc-800 text-zinc-400')}>
+                      {lead.name?.charAt(0) ?? '?'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-zinc-200 truncate">{lead.name}</span>
+                        {isHot && <Flame className="w-3 h-3 text-red-400 shrink-0" />}
+                      </div>
+                      <span className="text-xs text-zinc-600 capitalize">{lead.service_type?.replace('_',' ')}</span>
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-zinc-400 truncate">{lead.phone}</p>
+                    {lead.postcode && <p className="text-xs text-zinc-600 flex items-center gap-1"><MapPin className="w-3 h-3" />{lead.postcode}</p>}
+                  </div>
+                  <ScoreBadge score={lead.score} size="sm" />
+                  <StatusBadge status={lead.status} />
+                  <SourceBadge source={lead.source} />
+                  <span className="text-xs text-zinc-600">{formatRelativeTime(lead.created_at)}</span>
+                </Link>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs text-zinc-600">
+            Showing {(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE, filtered.length)} of {filtered.length}
           </span>
           <div className="flex items-center gap-1">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-              className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+            <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}
+              className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
               <ChevronLeft className="w-4 h-4" />
             </button>
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const pg = page <= 3 ? i + 1 : page + i - 2
-              if (pg > totalPages) return null
+              let p = i + 1
+              if (totalPages > 5) {
+                if (page <= 3) p = i + 1
+                else if (page >= totalPages - 2) p = totalPages - 4 + i
+                else p = page - 2 + i
+              }
               return (
-                <button key={pg} onClick={() => setPage(pg)}
-                  className={cn('w-7 h-7 rounded-md text-xs font-medium transition-all',
-                    pg === page ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800')}>
-                  {pg}
+                <button key={p} onClick={() => setPage(p)}
+                  className={cn('w-9 h-9 rounded-lg text-sm font-medium transition-all',
+                    page === p ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800')}>
+                  {p}
                 </button>
               )
             })}
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+            <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}
+              className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

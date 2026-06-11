@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, FileText,
@@ -35,31 +35,48 @@ function BookInspectionModal({ lead, onClose, onSuccess }: { lead: any; onClose:
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [appointments, setAppointments] = useState<any[]>([])
 
   const today = new Date().toISOString().split('T')[0]
+  const TIMES = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00']
+
+  useEffect(() => {
+    fetch('/api/data').then(r => r.json()).then(d => {
+      setAppointments((d.appointments ?? []).filter((a: any) =>
+        a.status !== 'CANCELLED' && a.status !== 'COMPLETED'
+      ))
+    }).catch(() => {})
+  }, [])
+
+  const selectedDateTime = date && time ? new Date(`${date}T${time}:00`) : null
+  const clash = selectedDateTime ? appointments.find((a: any) => {
+    const diff = Math.abs(new Date(a.scheduled_time).getTime() - selectedDateTime.getTime())
+    return diff < 60 * 60 * 1000
+  }) : null
+
+  const apptOnDate = date ? appointments.filter((a: any) =>
+    new Date(a.scheduled_time).toISOString().split('T')[0] === date
+  ) : []
+
+  const busyTimes = TIMES.filter(t => {
+    if (!date) return false
+    const dt = new Date(`${date}T${t}:00`)
+    return appointments.some((a: any) =>
+      Math.abs(new Date(a.scheduled_time).getTime() - dt.getTime()) < 60 * 60 * 1000
+    )
+  })
 
   const submit = async () => {
     if (!date) { setError('Please select a date'); return }
+    if (clash) { setError(`Clash with ${clash.leads?.name ?? 'another booking'}. Pick a different time.`); return }
     setLoading(true); setError('')
     try {
       const scheduledTime = new Date(`${date}T${time}:00`).toISOString()
-      // 1. Create appointment in Supabase
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table: 'appointments',
-          data: { lead_id: lead.id, roofer_id: 'a1000000-0000-0000-0000-000000000001', scheduled_time: scheduledTime, status: 'SCHEDULED', notes }
-        })
-      })
-      // 2. Update lead status to BOOKED
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'appointments', data: { lead_id: lead.id, roofer_id: 'a1000000-0000-0000-0000-000000000001', scheduled_time: scheduledTime, status: 'SCHEDULED' } }) })
       await fetch(`/api/leads/${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'BOOKED' }) })
-      // 3. Log event
-      await fetch('/api/data', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'lead_events', data: { lead_id: lead.id, event_type: 'APPOINTMENT_BOOKED', payload: { scheduled_time: scheduledTime, notes } } })
-      })
-      // 4. Send WhatsApp + Email via n8n
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'lead_events', data: { lead_id: lead.id, event_type: 'APPOINTMENT_BOOKED', payload: { scheduled_time: scheduledTime, notes } } }) })
       const d = new Date(scheduledTime)
       const dateStr = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
       const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -75,7 +92,7 @@ function BookInspectionModal({ lead, onClose, onSuccess }: { lead: any; onClose:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md rounded-2xl border border-zinc-700 bg-[#0f0f10] p-6 shadow-2xl">
+        className="w-full max-w-md rounded-2xl border border-zinc-700 bg-[#0f0f10] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-blue-400" />
@@ -87,14 +104,10 @@ function BookInspectionModal({ lead, onClose, onSuccess }: { lead: any; onClose:
         <div className="mb-4 p-3 rounded-lg bg-zinc-900 border border-zinc-800">
           <p className="text-sm font-medium text-zinc-200">{lead.name}</p>
           <p className="text-xs text-zinc-500 capitalize">{lead.service_type?.replace('_',' ')} · {lead.postcode}</p>
-          {!lead.email && (
-            <p className="text-xs text-amber-400 mt-1.5 flex items-center gap-1">
-              ⚠️ No email on file — confirmation will be sent via WhatsApp only
-            </p>
-          )}
-          {lead.email && (
-            <p className="text-xs text-emerald-400 mt-1.5">✓ Confirmation will be sent to {lead.email} + WhatsApp</p>
-          )}
+          {!lead.email
+            ? <p className="text-xs text-amber-400 mt-1.5">⚠️ No email — confirmation via WhatsApp only</p>
+            : <p className="text-xs text-emerald-400 mt-1.5">✓ Will notify: {lead.email} + WhatsApp</p>
+          }
         </div>
 
         {error && <p className="mb-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">{error}</p>}
@@ -102,29 +115,64 @@ function BookInspectionModal({ lead, onClose, onSuccess }: { lead: any; onClose:
         <div className="space-y-4">
           <div>
             <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Inspection Date *</label>
-            <input type="date" value={date} min={today} onChange={e => setDate(e.target.value)}
+            <input type="date" value={date} min={today} onChange={e => { setDate(e.target.value); setError('') }}
               className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-blue-500/50 transition-colors" />
           </div>
+
+          {date && apptOnDate.length > 0 && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <p className="text-xs font-semibold text-amber-400 mb-2">⚠️ Already booked on this date:</p>
+              {apptOnDate.map((a: any) => (
+                <div key={a.id} className="flex items-center justify-between text-xs text-amber-300/80 py-0.5">
+                  <span>{a.leads?.name ?? 'Unknown'}</span>
+                  <span>{new Date(a.scheduled_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Time</label>
-            <select value={time} onChange={e => setTime(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-blue-500/50 transition-colors">
-              {['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <div className="grid grid-cols-5 gap-1.5">
+              {TIMES.map(t => {
+                const isBusy = busyTimes.includes(t)
+                const isSelected = time === t
+                return (
+                  <button key={t} onClick={() => !isBusy && setTime(t)} disabled={isBusy}
+                    className={cn('py-2 rounded-lg text-xs font-medium border transition-all',
+                      isBusy ? 'bg-red-500/10 border-red-500/20 text-red-400/50 cursor-not-allowed line-through' :
+                      isSelected ? 'bg-blue-600 border-blue-500 text-white' :
+                      'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200')}>
+                    {t}
+                  </button>
+                )
+              })}
+            </div>
+            {busyTimes.length > 0 && (
+              <p className="text-[10px] text-zinc-600 mt-1.5">🔴 Red = already booked (within 1 hour)</p>
+            )}
           </div>
+
+          {clash && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+              <p className="text-xs font-semibold text-red-400">⛔ Time clash!</p>
+              <p className="text-xs text-red-300/70 mt-0.5">
+                {clash.leads?.name ?? 'Another customer'} is booked at {new Date(clash.scheduled_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Please pick a different slot.
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Notes (optional)</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Access notes, special instructions..."
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Access notes, gate codes..."
               className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-blue-500/50 transition-colors resize-none" />
           </div>
         </div>
 
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-lg border border-zinc-700 text-zinc-400 text-sm font-medium hover:bg-zinc-800 transition-colors">Cancel</button>
-          <button onClick={submit} disabled={loading || !date}
-            className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2">
+          <button onClick={submit} disabled={loading || !date || !!clash}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center justify-center gap-2">
             {loading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Booking...</> : <><Calendar className="w-4 h-4" /> Confirm Booking</>}
           </button>
         </div>
