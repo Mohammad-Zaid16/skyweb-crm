@@ -71,15 +71,22 @@ export default function QuotesPage() {
             quotes.map((quote, i) => {
               const cfg = STATUS_CONFIG[quote.status ?? 'SENT'] ?? STATUS_CONFIG.SENT
               const StatusIcon = cfg.icon
+              const leadId = (quote as any).lead_id
               return (
                 <motion.div key={quote.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-                  className="grid grid-cols-[1fr_1.5fr_auto_auto_auto] gap-4 items-center px-5 py-4 hover:bg-zinc-900/40 transition-colors cursor-pointer">
+                  className="grid grid-cols-[1fr_1.5fr_auto_auto_auto] gap-4 items-center px-5 py-4 hover:bg-zinc-900/40 transition-colors">
                   <div>
                     <p className="text-sm font-semibold text-zinc-200">{formatCurrency(quote.amount)}</p>
-                    <p className="text-xs text-zinc-600 mt-0.5">Quote #{quote.id.slice(-6).toUpperCase()}</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">#{quote.id.slice(-6).toUpperCase()}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-zinc-300 font-medium">{(quote as any).leads?.name ?? '—'}</p>
+                    {leadId ? (
+                      <a href={`/leads/${leadId}`} className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                        {(quote as any).leads?.name ?? '—'}
+                      </a>
+                    ) : (
+                      <p className="text-sm text-zinc-300 font-medium">{(quote as any).leads?.name ?? '—'}</p>
+                    )}
                     <p className="text-xs text-zinc-600 capitalize mt-0.5">{(quote as any).leads?.service_type?.replace('_', ' ')}</p>
                   </div>
                   <div>
@@ -88,7 +95,7 @@ export default function QuotesPage() {
                   <div className="text-right">
                     <p className="text-xs text-zinc-500">{formatDate(quote.sent_at)}</p>
                   </div>
-                  <div>
+                  <div className="flex items-center gap-2">
                     <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border', cfg.color)}>
                       <StatusIcon className="w-3 h-3" />
                       {quote.status}

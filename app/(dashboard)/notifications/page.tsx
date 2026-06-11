@@ -86,6 +86,7 @@ export default function NotificationsPage() {
                       <div className="flex items-center gap-3 mt-2">
                         <span className="text-[10px] text-zinc-600">{formatRelativeTime(n.created_at)}</span>
                         <span className="text-[10px] capitalize text-zinc-700">{n.type?.toLowerCase().replace(/_/g, ' ')}</span>
+                        <a href="/leads" className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors">View leads →</a>
                       </div>
                     </div>
                     <button
