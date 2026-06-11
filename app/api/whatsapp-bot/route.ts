@@ -14,7 +14,7 @@ const ULTRAMSG_TOKEN = 'fx0xyeaxdaana9o7'
 const ROOFER_ID      = 'a1000000-0000-0000-0000-000000000001'
 const ROOFER_PHONE   = '923228051306'
 const GEMINI_KEY     = 'AIzaSyDiB5D1Gp34VPONl5LFuOHvflmjRCIrmXU'
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`
+const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`
 
 const SYSTEM_PROMPT = `You are the Senior Customer Concierge for Peak Roofing Solutions, an elite UK roofing contractor.
 Collect booking details through natural WhatsApp conversation.
